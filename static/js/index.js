@@ -1,83 +1,84 @@
 (function() {
-  var html = {}
-  var playlist = document.getElementById('playlist')
   var socket = io();
 
-  socket.on('start', function (data) {
-    Object.keys(data.users).forEach(function(obj){
-      console.log(data.users[obj]);
+  var html = {}
+  var playlist = document.getElementById('playlist')
+  var play = document.getElementById('play');
 
-      playlist.innerHTML +=
-      `<div class="info empty" id="${data.users[obj]._id}">
-        <div id="${data.users[obj]._id}-image" class="image"><img src="${data.users[obj].albumImage}" alt=""></div>
-        <div class="text">
-          <p><strong>Artist: </strong> <span id="${data.users[obj]._id}-artist">${data.users[obj].artist}</span></p>
-          <p><strong>Song: </strong> <span id="${data.users[obj]._id}-song">${data.users[obj].song}</span></p>
-        </div>
-        <div class="profile">
-          <img src="${data.users[obj].profileImage}" alt="profile picture" class="profile-image">
-          <p>${data.users[obj].name}</p>
-        </div>
-        <div id="${data.users[obj]._id}-like" class="like"></div>
-      </div>`
-      var like = document.getElementById(data.users[obj]._id+'-like');
-      like.addEventListener('click', function(e){
-        like.classList.add('liked');
-        console.log(e.target.id);
-        socket.emit('like', {id: e.target.id})
-      })
-      socket.emit('new user', {playlist: playlist.innerHTML})
-
-      var info = document.getElementById('info');
-      document.getElementById(data.users[obj]._id).classList.remove('empty');
-    })
+  socket.on('new user', function(user){
+    console.log(user, '[USER]');
+    playlist.innerHTML +=
+    `<div class="info empty" id="${user._id}">
+      <div id="${user._id}-image" class="image"><img src="${user.albumImage}" alt=""></div>
+      <div class="text">
+        <p><strong>Artist: </strong> <span id="${user._id}-artist">${user.artist}</span></p>
+        <p><strong>Song: </strong> <span id="${user._id}-song">${user.song}</span></p>
+      </div>
+      <div class="profile">
+        <img src="${user.profileImage}" alt="profile picture" class="profile-image">
+        <p>${user.userName}</p>
+      </div>
+      <div id="${user._id}-like" class="like"></div>
+    </div>`
+    console.log(playlist, '[PLAYLIST]');
+    setInterval(function(){
+      console.log('[CHEEECK]');
+      socket.emit('check', user._id);
+    }, 7000);
   })
 
-  socket.on('check song', function() {
-    socket.emit('next song');
-    // console.log('[CHEEECK]');
-  })
+  socket.on('all songs', function (docs) {
+    console.log(docs, '[should be an object]');
+    playlist = '';
 
-  socket.on('liked', function(id) {
-    console.log(id.target);
-    document.getElementById(id.target).classList.add('liked');
-  })
-
-
-  socket.on('update song', function(data){
-    Object.keys(data.users).forEach(function(obj){
-      var song = document.getElementById(`${data.users[obj]._id}-song`);
-      var artist = document.getElementById(`${data.users[obj]._id}-artist`);
-      var image = document.getElementById(`${data.users[obj]._id}-image`);
-      var info = document.getElementById('info');
-
-      if (document.getElementById(data.users[obj]._id) == null) {
-        console.log('[NEW] song');
+    docs.map(function(obj){
+      if (obj.song !== undefined) {
+        console.log('It haz works');
         playlist.innerHTML +=
-        `<div class="info empty" id="${data.users[obj]._id}">
-          <div id="${data.users[obj]._id}-image" class="image"><img src="${data.users[obj].albumImage}" alt=""></div>
+        `<div class="info empty" id="${obj._id}">
+          <div id="${obj._id}-image" class="image"><img src="${obj.albumImage}" alt=""></div>
           <div class="text">
-            <p><strong>Artist: </strong> <span id="${data.users[obj]._id}-artist">${data.users[obj].artist}</span></p>
-            <p><strong>Song: </strong> <span id="${data.users[obj]._id}-song">${data.users[obj].song}</span></p>
+            <p><strong>Artist: </strong> <span id="${obj._id}-artist">${obj.artist}</span></p>
+            <p><strong>Song: </strong> <span id="${obj._id}-song">${obj.song}</span></p>
           </div>
           <div class="profile">
-            <img src="${data.users[obj].profileImage}" alt="profile picture" class="profile-image">
-            <p>${data.users[obj].name}</p>
+            <img src="${obj.profileImage}" alt="profile picture" class="profile-image">
+            <p>${obj.userName}</p>
           </div>
-          <div id="${data.users[obj]._id}-like" class="like"></div>
+          <div id="${obj._id}-like" class="like"></div>
         </div>`
-        var like = document.getElementById(data.users[obj]._id+'-like');
-        like.addEventListener('click', function(e){
-          like.classList.add('liked');
-          console.log(e.target.id);
-          socket.emit('like', {id: e.target.id})
-        })
-      } else {
-        image.innerHTML = `<img src="${data.users[obj].albumImage}" alt="">`
-        artist.innerHTML = data.users[obj].artist;
-        song.innerHTML = data.users[obj].song;
       }
-      document.getElementById(data.users[obj]._id).classList.remove('empty');
     })
   })
+
+  socket.on('check', function() {
+    socket.emit('check song');
+    console.log('[CHEEECK]');
+  })
+
+  socket.on('new song', function(docs) {
+    console.log(docs);
+    console.log('new song');
+    docs.map(function(obj){
+      console.log(obj);
+      playlist = '';
+      if (obj.song !== undefined) {
+        console.log('put it in a zakje');
+        playlist.innerHTML +=
+        `<div class="info empty" id="${obj._id}">
+          <div id="${obj._id}-image" class="image"><img src="${obj.albumImage}" alt=""></div>
+          <div class="text">
+            <p><strong>Artist: </strong> <span id="${obj._id}-artist">${obj.artist}</span></p>
+            <p><strong>Song: </strong> <span id="${obj._id}-song">${obj.song}</span></p>
+          </div>
+          <div class="profile">
+            <img src="${obj.profileImage}" alt="profile picture" class="profile-image">
+            <p>${obj.userName}</p>
+          </div>
+          <div id="${obj._id}-like" class="like"></div>
+        </div>`
+      }
+    })
+  })
+
 })();
