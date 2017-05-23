@@ -22,8 +22,9 @@ var userSchema = new Schema({
   userName: String,
   profileImage: String,
   song: String,
-  newsong: String,
+  newSong: String,
   artist: String,
+  newArtist: String,
   albumImage: String,
   time: {type: Date, default: Date.now}
 })
@@ -152,7 +153,7 @@ io.on('connection', function(socket) {
     if(err) throw err;
     socket.emit('all songs', docs);
   })
-  
+
   socket.emit('new user', userSchema);
 
   connections.push(socket);
@@ -176,25 +177,22 @@ io.on('connection', function(socket) {
         if(err) throw err;
 
         u.map(function(obj) {
-          obj.newsong = body.item.name;
-          if (obj.song !== obj.newsong) {
+          obj.newSong = body.item.name;
+          if (obj.song !== obj.newSong) {
             console.log('new song');
             obj.albumImage = body.item.album.images[2].url;
-            obj.song = obj.newsong;
+            obj.song = obj.newSong;
 
-            body.item.artists.map(function (obj) {
-              obj.artist = obj.name;
+            body.item.artists.map(function (a) {
+              obj.artist = a.name;
               userSchema.save(user, function(err) {
                 if(err) throw err;
               })
             })
+          socket.emit('update song', obj);
           }
         })
-        user.find({}, function(err, docs){
-          // console.log(docs, '[ALL DOCS]');
-          if(err) throw err;
-          socket.emit('all songs', docs)
-        })
+
       })
     });
   });
