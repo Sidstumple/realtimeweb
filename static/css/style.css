@@ -16,6 +16,10 @@ body {
   align-items: center;
 }
 
+.hide {
+  display: none;
+}
+
 .info:nth-child(even) {
   background: #111;
 }
@@ -77,4 +81,23 @@ body {
 
 .liked:hover {
   background-image: url(../img/tolike.png);
+}
+
+.liked-songs {
+    width: 15em;
+    min-height: 100vh;
+    background: green;
+    color: white;
+    padding: 2em;
+}
+
+.flexy {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
 }

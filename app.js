@@ -9,15 +9,19 @@ var mongoose = require('mongoose');
 
 var Schema = mongoose.Schema;
 
-mongoose.connect('mongodb://localhost/data', function(err){
+
+mongoose.connect(process.env.MONGO, function(err){
   if(err){
     console.log(err);
+    console.log('no connection');
   }else{
     console.log('Connected to MongoDB');
   }
 })
 
 var userSchema = new Schema({
+  _id: String,
+  socketId: String,
   accessToken: String,
   userName: String,
   profileImage: String,
@@ -26,10 +30,12 @@ var userSchema = new Schema({
   artist: String,
   newArtist: String,
   albumImage: String,
-  time: {type: Date, default: Date.now}
+  liked: []
 })
 
 var user = mongoose.model('user', userSchema);
+
+
 
 app.get('/users', function (req, res) {
   mongoose.model('user').find(function(err, users) {
@@ -60,7 +66,7 @@ app.get('/login', function(req, res) {
   var permissions = encodeURIComponent('client');
 
   console.log('serving Spotify button with permissions: ' + permissions);
-  console.log('new instance');
+  // console.log('new instance');
   var scope = 'user-read-private user-read-email user-read-currently-playing user-read-playback-state user-read-recently-played user-modify-playback-state';
 
   res.redirect('https://accounts.spotify.com/authorize?' +
@@ -93,15 +99,25 @@ app.get('/callback', function(req, res) {
     var access_token = body.access_token;
     var refresh_token = body.refresh_token;
     userSchema = new user({accessToken: access_token})
-    console.log(userSchema);
+    // userSchema.accessToken = access_token;
+    userSchema.save(function(err){
+      if (err) {
+        return err
+      }else {
+        console.log('accessToken saved');
+      }
+    })
+
+    // console.log(userSchema);
     console.log("[NEW ACCESSTOKEN] added");
+
 
     res.redirect('/whatsplaying');
   });
 });
 
 app.get('/whatsplaying', function(req, res) {
-  if (userSchema.accessToken !== undefined){
+  if (userSchema.accessToken !== undefined) {
     res.render('whatsplaying');
     var profile = {
       url: 'https://api.spotify.com/v1/me/',
@@ -110,36 +126,14 @@ app.get('/whatsplaying', function(req, res) {
     }
 
     request.get(profile, function(error, response, profile) {
-      if(profile.display_name == null){
-        userSchema.userName = profile.id;
-      } else {
-        userSchema.userName = profile.display_name;
-      }
-      if (profile.images !== '') {
-        profile.images.map(function (obj) {
-          console.log('///////////////[NEW USER DATA]');
-          userSchema.profileImage = obj.url;
-        })
-      }
-
-      var options = {
-        url: 'https://api.spotify.com/v1/me/player/currently-playing',
-        headers: { 'Authorization': 'Bearer ' + userSchema.accessToken },
-        json: true
-      }
-      request.get(options, function(error, response, body) {
-        userSchema.albumImage = body.item.album.images[2].url;
-        userSchema.song = body.item.name;
-
-        body.item.artists.map(function (obj) {
-          userSchema.artist = obj.name;
-          userSchema.save(user, function(err) {
-            if(err) throw err;
-          })
-        })
-      });
-
-      console.log(userSchema, '///////////////<<<<><><><><><');
+      userSchema._id = profile.id;
+      userSchema.save(function(err){
+        if (err) {
+          return err
+        }else {
+          console.log('accessToken saved');
+        }
+      })
     })
   } else {
     console.log('no access token for the selected scope yet.');
@@ -148,52 +142,149 @@ app.get('/whatsplaying', function(req, res) {
 })
 
 io.on('connection', function(socket) {
-  user.find({}, function(err, docs){
-    console.log(docs);
-    if(err) throw err;
-    socket.emit('all songs', docs);
-  })
-
-  socket.emit('new user', userSchema);
-
   connections.push(socket);
   console.log('Connected: %s sockets connected', connections.length);
   // Disconnect
   socket.on('disconnect', function(data){
+    //remove user's data when he is disconnected.
+    user.find({socketId: socket.id}).remove().exec();
+
     connections.splice(connections.indexOf(socket), 1);
     console.log('Disconnected: %s sockets connected', connections.length);
   });
-
-  socket.on('check', function (id) {
-    console.log(id);
-    // console.log('check');
-    var options = {
-      url: 'https://api.spotify.com/v1/me/player/currently-playing',
-      headers: { 'Authorization': 'Bearer ' + userSchema.accessToken },
-      json: true
+  setTimeout(function() {
+    if(userSchema._id !== null && userSchema._id !== undefined){
+    console.log(userSchema._id, 'hello');
+      var query = {'_id': userSchema._id};
+      user.update(query, {
+        '$set':{
+          socketId: socket.id
+        }
+      }, {upsert:true}, function(err, doc){
+        if(err) console.log(err);
+        // console.log(doc);
+      });
     }
-    request.get(options, function(error, response, body) {
-      user.find({_id: id}, function(err, u){
-        if(err) throw err;
+    user.find({}, function(err, docs){
+      // console.log(docs, '[DOCS!!!!]' );
+      if(err) throw err;
+      socket.emit('initiate songs', {docs: docs, userid: userSchema._id});
+    })
 
-        u.map(function(obj) {
-          obj.newSong = body.item.name;
-          if (obj.song !== obj.newSong) {
-            console.log('new song');
-            obj.albumImage = body.item.album.images[2].url;
-            obj.song = obj.newSong;
+    // get username and current song info
+    if(userSchema._id !== null){
+      user.find({socketId: socket.id}, function(err, docs){
+        // console.log(docs, '[EMPTY?]');
+        docs.map(function (ob) {
+          var options = {
+            url: 'https://api.spotify.com/v1/me/player/currently-playing',
+            headers: { 'Authorization': 'Bearer ' + ob.accessToken },
+            json: true
+          }
 
-            body.item.artists.map(function (a) {
-              obj.artist = a.name;
+          request.get(options, function(error, response, body) {
+            if(body.item !== undefined || body.item.album !== '') {
+              ob.albumImage = body.item.album.images[2].url;
+            }
+            ob.song = body.item.name;
+
+            body.item.artists.map(function (obj) {
+              ob.artist = obj.name;
               userSchema.save(user, function(err) {
-                if(err) throw err;
+                if(err) console.log(err);
               })
             })
-          socket.emit('update song', obj);
+            socket.emit('add song', {user: userSchema});
+          });
+          var profile = {
+            url: 'https://api.spotify.com/v1/me/',
+            headers: { 'Authorization': 'Bearer ' + ob.accessToken },
+            json: true
           }
-        })
 
+          request.get(profile, function(error, response, profile) {
+            ob._id = profile.id;
+            if(profile.display_name == null){
+              ob.userName = profile.id;
+            } else {
+              ob.userName = profile.display_name;
+            }
+            if (profile.images !== undefined || profile.images !== '') {
+              profile.images.map(function (obj) {
+                console.log('///////////////[NEW USER DATA]');
+                ob.profileImage = obj.url;
+              })
+            } else {
+              ob.profileImage = 'http://cydstumpel.nl/img/hva.jpg';
+            }
+            ob.save(user, function(err) {
+              if(err) throw err;
+            })
+          })
+        })
       })
-    });
+    }
+  },500);
+
+  socket.on('check', function () {
+      user.find({socketId: socket.id}, function(err, docs){
+        if(err) console.log(err);
+
+        docs.map(function (nu) {
+          var options = {
+            url: 'https://api.spotify.com/v1/me/player/currently-playing',
+            headers: { 'Authorization': 'Bearer ' + nu.accessToken },
+            json: true
+          }
+          request.get(options, function(error, response, body) {
+            if(body.item == null) {
+              console.log('spotify reclame');
+            } else {
+              nu.newSong = body.item.name;
+              if(nu.newSong !== nu.song) {
+                console.log('new Song');
+                nu.albumImage = body.item.album.images[2].url;
+                nu.song = body.item.name;
+
+                body.item.artists.map(function (obj) {
+                  nu.artist = obj.name;
+                  nu.save(user, function(err) {
+                    if(err) throw err;
+                  })
+                })
+                // console.log(docs);
+                io.sockets.emit('update song', docs)
+              } else {
+                // console.log('same song');
+              }
+            }
+        })
+      })
+    })
   });
+
+  socket.on('liked', function(info) {
+    // console.log(info.song, info.artist);
+    user.find({socketId: socket.id}, function(err, docs){
+      if(err) console.log(err);
+      userSchema.liked.push(info.song + info.artist);
+      userSchema.save(user, function (err) {
+        if (err) console.log(err);
+      })
+    })
+    console.log(userSchema.liked);
+
+
+    // user.findOneAndUpdate({socketId: socket.id}, function(err, docs){
+    //   var query = {'socketId': socket.id};
+    //   user.update(query, {
+    //     '$push':{
+    //       liked: info.song + info.artist
+    //     }
+    //   }, {upsert:true}, function(err, doc){
+    //     if(err) console.log(err);
+    //   })
+    //   console.log(userSchema.liked);
+    // })
+  })
 });
