@@ -273,18 +273,6 @@ io.on('connection', function(socket) {
       })
     })
     console.log(userSchema.liked);
-
-
-    // user.findOneAndUpdate({socketId: socket.id}, function(err, docs){
-    //   var query = {'socketId': socket.id};
-    //   user.update(query, {
-    //     '$push':{
-    //       liked: info.song + info.artist
-    //     }
-    //   }, {upsert:true}, function(err, doc){
-    //     if(err) console.log(err);
-    //   })
-    //   console.log(userSchema.liked);
-    // })
+    socket.emit('show likes', {likes: userSchema.liked})
   })
 });

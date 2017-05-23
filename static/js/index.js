@@ -36,10 +36,6 @@
           var son = this.parentNode.children[1].innerHTML;
 
           socket.emit('liked', {artist: art, song: son})
-
-          // var songdiv = `<div class="liked-song"><p>${divie.children[0].innerHTML}</p><p>${divie.children[1].innerHTML}<p><div>`;
-          //
-          // likes.innerHTML += songdiv;
         })
       })
     })
@@ -102,5 +98,18 @@
         socket.emit('liked', {artist: art, song: son})
       })
     })
+  })
+
+  socket.on('show likes', function(el) {
+    console.log(el);
+    el.likes.forEach(function (e) {
+      console.log(e, 'show');
+      var songdiv = `<div class="liked-song">${e}<div>`;
+
+      likes.innerHTML += songdiv;
+
+    })
+
+
   })
 })();
