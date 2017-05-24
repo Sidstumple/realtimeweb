@@ -174,5 +174,7 @@ song.map(function(nu) {
 })
 ```
 ## Wishlist
-- Viewing songs that are liked by other users
-- Playing songs from other users
+- [ ] Viewing songs that are liked by other users
+- [x] Showing liked video's on reload
+- [ ] Not accepting duplicate songs to liked array
+- [ ] Playing songs from other users
