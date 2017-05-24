@@ -12,8 +12,6 @@
     d.docs.map(function(obj){
       if (obj.song !== undefined) {
         var short = obj.song.replace( /\s/g, "");
-
-
         playlist.innerHTML +=
         `<div class="info empty" id="${obj._id}">
           <div id="${obj._id}-image" class="image"><img src="${obj.albumImage}" alt=""></div>
@@ -29,21 +27,32 @@
         </div>`
       }
       var hearts = document.querySelectorAll('.like');
+
       hearts.forEach(function(ob) {
-        console.log('HEARTSSSS');
         var heartId = document.getElementById(ob.id);
-        console.log(heartId);
+
         heartId.addEventListener('click', function (event) {
           console.log(this, 'click');
-          var art = this.parentNode.children[0].innerHTML;
-          var son = this.parentNode.children[1].innerHTML;
+          var img = this.parentNode.childNodes[1].innerHTML;
+          var son = this.parentNode.childNodes[3].innerHTML;
+          console.log(img, son);
 
-          console.log(art);
-
-          socket.emit('liked', {artist: art, song: son})
+          socket.emit('liked', {image: img, song: son})
         })
       })
     })
+    socket.on('get liked songs', function (songs) {
+      console.log('getting liked songs');
+      console.log(songs, '[SONGSSS]');
+      if (songs.liked !== '') {
+        // likes.innerHTML = '';
+        songs.forEach(function (e) {
+          var songdiv = `<div class="liked-song">${e.img}${e.song}<div>`;
+          likes.innerHTML += songdiv;
+        })
+      }
+    })
+
     setInterval(function(){
       console.log('[CHEEECK]');
       socket.emit('check');
@@ -98,27 +107,28 @@
         socket.emit('update all')
     })
     var hearts = document.querySelectorAll('.like');
+    console.log(hearts);
     hearts.forEach(function(ob) {
-      console.log('HEARTSSSS');
       var heartId = document.getElementById(ob.id);
-      console.log(heartId);
       heartId.addEventListener('click', function (event) {
         console.log(this, 'click');
-        var art = this.parentNode.children[0].innerHTML;
-        var son = this.parentNode.children[1].innerHTML;
+        var img = this.parentNode.childNodes[1].innerHTML;
+        var son = this.parentNode.childNodes[3].innerHTML;
+        console.log(img, son);
 
-        console.log(art);
-
-        socket.emit('liked', {artist: art, song: son})
+        socket.emit('liked', {image: img, song: son})
       })
     })
   })
 
   socket.on('show likes', function(el) {
-    console.log(el);
-    el.likes.forEach(function (e) {
+    console.log('Update likes');
+    console.log(el, 'WHAT?');
+    likes.innerHTML = '';
+    el.liked.forEach(function (e) {
       console.log(e, 'show');
-      var songdiv = `<div class="liked-song">${e}<div>`;
+      console.log(e.img);
+      var songdiv = `<div class="liked-song">${e.img}${e.song}<div>`;
 
       likes.innerHTML += songdiv;
 

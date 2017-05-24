@@ -30,7 +30,7 @@ var userSchema = new Schema({
   artist: String,
   newArtist: String,
   albumImage: String,
-  liked: []
+  liked: Array
 })
 
 var user = mongoose.model('user', userSchema);
@@ -173,8 +173,9 @@ io.on('connection', function(socket) {
   user.find({}, function(err, docs){
     // console.log(docs, '[DOCS!!!!]' );
     if(err) throw err;
-    socket.emit('initiate songs', {docs: docs, userid: userSchema._id});
+    socket.emit('initiate songs', {docs: docs});
   })
+
 
   setTimeout(function() {
       if(userSchema._id !== undefined){
@@ -191,7 +192,15 @@ io.on('connection', function(socket) {
       }
 
       user.find({socketId: socket.id}, function(err, docs){
+
         docs.map(function (ob) {
+          console.log(ob.liked == undefined, '[IS THIS TRUE?]');
+          if (ob.liked !== '') {
+            console.log('Getting liked songs');
+            var likes = ob.liked;
+            socket.emit('get liked songs', likes);
+          }
+
           if (userSchema.accessToken == undefined) {
             console.log('redirecting to login');
             var destination = '/';
@@ -268,15 +277,19 @@ io.on('connection', function(socket) {
   });
 
   socket.on('liked', function(info) {
-    // console.log(info.song, info.artist);
     user.find({socketId: socket.id}, function(err, docs){
       if(err) console.log(err);
-      userSchema.liked.push(info.song + info.artist);
-      userSchema.save(user, function (err) {
-        if (err) console.log(err);
+      docs.map(function(s) {
+        var newLike = {img: info.image, song: info.song};
+        console.log(info.image);
+
+        s.liked.push(newLike);
+        s.save(function (err) {
+          if (err) console.log(err);
+          socket.emit('show likes', s)
+        })
       })
     })
-    console.log(userSchema.liked);
-    socket.emit('show likes', {likes: userSchema.liked})
   })
+  console.log(userSchema.liked);
 });
