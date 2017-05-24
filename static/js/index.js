@@ -11,6 +11,9 @@
     console.log('Initiate songs');
     d.docs.map(function(obj){
       if (obj.song !== undefined) {
+        var short = obj.song.replace( /\s/g, "");
+
+
         playlist.innerHTML +=
         `<div class="info empty" id="${obj._id}">
           <div id="${obj._id}-image" class="image"><img src="${obj.albumImage}" alt=""></div>
@@ -22,7 +25,7 @@
             <img src="${obj.profileImage}" alt="profile picture" class="profile-image">
             <p>${obj.userName}</p>
           </div>
-          <div id="${obj._id}-like" class="like"></div>
+          <div id="${short}" class="like"></div>
         </div>`
       }
       var hearts = document.querySelectorAll('.like');
@@ -35,20 +38,27 @@
           var art = this.parentNode.children[0].innerHTML;
           var son = this.parentNode.children[1].innerHTML;
 
+          console.log(art);
+
           socket.emit('liked', {artist: art, song: son})
         })
       })
     })
-    var id = d.docs;
     setInterval(function(){
       console.log('[CHEEECK]');
-      socket.emit('check', id);
+      socket.emit('check');
     }, 1000);
+  })
+
+  socket.on('redirect', function(destination) {
+    window.location.href = '/';
   })
 
   socket.on('add song', function (doc) {
     console.log('add a new user song');
     if (doc.user.song !== undefined) {
+      var short = doc.user.song.replace( /\s/g, "");
+
       playlist.innerHTML +=
       `<div class="info empty" id="${doc.user._id}">
         <div id="${doc.user._id}-image" class="image"><img src="${doc.user.albumImage}" alt=""></div>
@@ -60,7 +70,7 @@
           <img src="${doc.user.profileImage}" alt="profile picture" class="profile-image">
           <p>${doc.user.userName}</p>
         </div>
-        <div id="${doc.user._id}-like" class="like"></div>
+        <div id="${short}" class="like"></div>
       </div>`
     }
   })
@@ -70,6 +80,7 @@
     console.log(song, '[SONG]');
     song.map(function(nu) {
       console.log(nu, '[nu]');
+      var short = nu.song.replace( /\s/g, "");
         playlist.innerHTML +=
         `<div class="info empty" id="${nu._id}">
         <div id="${nu._id}-image" class="image"><img src="${nu.albumImage}" alt=""></div>
@@ -81,7 +92,8 @@
         <img src="${nu.profileImage}" alt="profile picture" class="profile-image">
         <p>${nu.userName}</p>
         </div>
-        <div id="${nu._id}-like" class="like"></div>
+        <div id="${short}" class="like"></div>
+
         </div>`
         socket.emit('update all')
     })
@@ -94,6 +106,8 @@
         console.log(this, 'click');
         var art = this.parentNode.children[0].innerHTML;
         var son = this.parentNode.children[1].innerHTML;
+
+        console.log(art);
 
         socket.emit('liked', {artist: art, song: son})
       })

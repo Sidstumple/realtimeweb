@@ -52,7 +52,8 @@ var client_id = process.env.CLIENT_ID; // Your client id
 var client_secret = process.env.CLIENT_SECRET; // Your secret
 var redirect_uri = process.env.REDIRECT_URI; // Your redirect uri
 var connections = [];
-// var userSchema;
+
+// console.log(userSchema.accessToken == undefined, '[IS THIS TRUE?]');
 
 // set the view engine to ejs
 app.set('view engine', 'ejs');
@@ -127,11 +128,24 @@ app.get('/whatsplaying', function(req, res) {
 
     request.get(profile, function(error, response, profile) {
       userSchema._id = profile.id;
+      if(profile.display_name == null){
+        userSchema.userName = profile.id;
+      } else {
+        userSchema.userName = profile.display_name;
+      }
+      profile.images.map(function (obj) {
+        console.log('///////////////[NEW USER DATA]');
+        if (obj.url !== undefined) {
+          userSchema.profileImage = obj.url;
+        } else {
+          userSchema.profileImage = 'http://cydstumpel.nl/img/hva.jpg';
+        }
+      })
       userSchema.save(function(err){
         if (err) {
           return err
         }else {
-          console.log('accessToken saved');
+          console.log('Profile saved');
         }
       })
     })
@@ -146,84 +160,71 @@ io.on('connection', function(socket) {
   console.log('Connected: %s sockets connected', connections.length);
   // Disconnect
   socket.on('disconnect', function(data){
-    //remove user's data when he is disconnected.
-    user.find({socketId: socket.id}).remove().exec();
-
+    //remove user's data when no users are connected.
     connections.splice(connections.indexOf(socket), 1);
     console.log('Disconnected: %s sockets connected', connections.length);
-  });
-  setTimeout(function() {
-    if(userSchema._id !== null && userSchema._id !== undefined){
-    console.log(userSchema._id, 'hello');
-      var query = {'_id': userSchema._id};
-      user.update(query, {
-        '$set':{
-          socketId: socket.id
-        }
-      }, {upsert:true}, function(err, doc){
-        if(err) console.log(err);
-        // console.log(doc);
-      });
+    console.log(connections.length);
+    if (connections.length == 0) {
+      console.log('ZERO sockets connected, delete database');
+      user.find({}).remove().exec();
     }
-    user.find({}, function(err, docs){
-      // console.log(docs, '[DOCS!!!!]' );
-      if(err) throw err;
-      socket.emit('initiate songs', {docs: docs, userid: userSchema._id});
-    })
+  });
 
-    // get username and current song info
-    if(userSchema._id !== null){
+  user.find({}, function(err, docs){
+    // console.log(docs, '[DOCS!!!!]' );
+    if(err) throw err;
+    socket.emit('initiate songs', {docs: docs, userid: userSchema._id});
+  })
+
+  setTimeout(function() {
+      if(userSchema._id !== undefined){
+        console.log(userSchema._id, 'hello');
+        var query = {'_id': userSchema._id};
+        user.update(query, {
+          '$set':{
+            socketId: socket.id
+          }
+        }, {upsert:true}, function(err, doc){
+          if(err) console.log(err);
+          // console.log(doc);
+        });
+      }
+
       user.find({socketId: socket.id}, function(err, docs){
-        // console.log(docs, '[EMPTY?]');
         docs.map(function (ob) {
-          var options = {
-            url: 'https://api.spotify.com/v1/me/player/currently-playing',
-            headers: { 'Authorization': 'Bearer ' + ob.accessToken },
-            json: true
-          }
+          if (userSchema.accessToken == undefined) {
+            console.log('redirecting to login');
+            var destination = '/';
+            socket.emit('redirect', destination)
+          } else {
+            // get username and current song info
+            user.find({socketId: socket.id}, function(err, docs){
+              docs.map(function (ob) {
+                var options = {
+                  url: 'https://api.spotify.com/v1/me/player/currently-playing',
+                  headers: { 'Authorization': 'Bearer ' + ob.accessToken },
+                  json: true
+                }
 
-          request.get(options, function(error, response, body) {
-            if(body.item !== undefined || body.item.album !== '') {
-              ob.albumImage = body.item.album.images[2].url;
-            }
-            ob.song = body.item.name;
+                request.get(options, function(error, response, body) {
+                  if(body.item !== undefined) {
+                    ob.albumImage = body.item.album.images[2].url;
+                    ob.song = body.item.name;
 
-            body.item.artists.map(function (obj) {
-              ob.artist = obj.name;
-              userSchema.save(user, function(err) {
-                if(err) console.log(err);
+                    body.item.artists.map(function (obj) {
+                      ob.artist = obj.name;
+                      userSchema.save(user, function(err) {
+                        if(err) console.log(err);
+                      })
+                    })
+                  }
+                });
+                socket.emit('add song', {user: userSchema});
               })
             })
-            socket.emit('add song', {user: userSchema});
-          });
-          var profile = {
-            url: 'https://api.spotify.com/v1/me/',
-            headers: { 'Authorization': 'Bearer ' + ob.accessToken },
-            json: true
           }
-
-          request.get(profile, function(error, response, profile) {
-            ob._id = profile.id;
-            if(profile.display_name == null){
-              ob.userName = profile.id;
-            } else {
-              ob.userName = profile.display_name;
-            }
-            if (profile.images !== undefined || profile.images !== '') {
-              profile.images.map(function (obj) {
-                console.log('///////////////[NEW USER DATA]');
-                ob.profileImage = obj.url;
-              })
-            } else {
-              ob.profileImage = 'http://cydstumpel.nl/img/hva.jpg';
-            }
-            ob.save(user, function(err) {
-              if(err) throw err;
-            })
-          })
         })
       })
-    }
   },500);
 
   socket.on('check', function () {
@@ -238,7 +239,10 @@ io.on('connection', function(socket) {
           }
           request.get(options, function(error, response, body) {
             if(body.item == null) {
-              console.log('spotify reclame');
+              console.log(body.item, 'BODYYYY');
+              console.log('Redirect: spotify ad or user has no accessToken');
+              var destination = '/';
+              socket.emit('redirect', destination)
             } else {
               nu.newSong = body.item.name;
               if(nu.newSong !== nu.song) {
