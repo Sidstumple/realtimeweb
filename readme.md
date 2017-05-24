@@ -1,10 +1,40 @@
 # Real time Spotify app
 A real time depiction of what a Spotify user is listening to.
 View demo on:
-https://spotify-rtw.herokuapp.com/
+https://realtimespotify.herokuapp.com/
 
 ## Description
 This app was created for the course Real Time Web of the minor Webdevelopment at the University of Applied Sciences Amsterdam. With this app users are able to view what others are listening to and like songs.
+
+## Dependencies
+- [Dot env](https://www.npmjs.com/package/dotenv)
+- [EJS](https://www.npmjs.com/package/ejs)
+- [Express](https://www.npmjs.com/package/express)
+- [Query String](https://www.npmjs.com/package/querystring)
+- [request](https://www.npmjs.com/package/request)
+- [socket.io](https://www.npmjs.com/package/socket.io)
+- [mongoose](https://www.npmjs.com/package/mongoose)
+- [MongoDB](https://www.npmjs.com/package/mongodb)
+
+## Install
+1. Clone this repository
+2. Open up your command line, navigate to the right folder and run `npm install`
+3. Make a database on [mLab](https://mlab.com)
+4. Make an account on [spotify's API website](https://developer.spotify.com/web-api/)
+5. Create a `.env` file and give it the following variables:
+```
+CLIENT_ID=<your Spotify client id>
+CLIENT_SECRET=<your Spotify client secret>
+REDIRECT_URI=<your Spotify callback link>
+MONGO=<your mLab URI>
+```
+6. run `node app.js`
+
+## Features
+- OAuth 
+- Viewing your played songs
+- Viewing songs played by other logged on users
+- Liking songs
 
 ## OAuth
 To access user-specific data my app uses OAuth to ask permission from the Spotify server. When the user clicks the 'Login with Spotify' button they will be directed to `/login`. If the user already has an access token for the declared `scope` (when the user has logged in before), they will be redirected to `/whatsplaying`. Otherwise they will be redirected:
@@ -143,13 +173,6 @@ song.map(function(nu) {
   socket.emit('update all')
 })
 ```
-
-### Dependencies
-- [Dot env](https://www.npmjs.com/package/dotenv)
-- [EJS](https://www.npmjs.com/package/ejs)
-- [Express](https://www.npmjs.com/package/express)
-- [Query String](https://www.npmjs.com/package/querystring)
-- [request](https://www.npmjs.com/package/request)
-- [socket.io](https://www.npmjs.com/package/socket.io)
-- [mongoose](https://www.npmjs.com/package/mongoose)
-- [MongoDB](https://www.npmjs.com/package/mongodb)
+## Wishlist
+- Viewing songs that are liked by other users
+- Playing songs from other users
